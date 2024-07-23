@@ -31,7 +31,7 @@ static int notify_rtp_done(void* priv) {
 
 static int app_tx_build_rtp_packet(struct tv_rtp_sample_ctx* s,
                                    struct st20_rfc4175_rtp_hdr* rtp, uint16_t* pkt_len) {
-  uint8_t* payload = (uint8_t*)rtp + sizeof(*rtp);
+  uint8_t* payload = (uint8_t*)rtp + sizeof(*rtp); //pointer arithmetic: payload is a pointer to the starting address of the RTP packet's payload within the memory buffer that contains the RTP packet.
 
   /* update hdr */
   rtp->base.tmstamp = htonl(s->rtp_tmstamp);
@@ -44,28 +44,35 @@ static int app_tx_build_rtp_packet(struct tv_rtp_sample_ctx* s,
   rtp->base.marker = 0;
   rtp->base.payload_type = s->payload_type;
 
-  // 4320 for ex. it is for 1080p, each line, we have 4 packet, each 1200 bytes.
+  // 4320 for ex. it is for 1080p, each line, we have 4 packet, each 1200 bytes. 
+  /* 1080 lines/fr * 4 pkt/line = 4320 pkts/fr  */
+  /* payload size is 1200 (Theoretical maximal payload size is 1460)*/
   uint16_t row_number, row_offset;
-  row_number = s->pkt_idx / 4;         /* 0 to 1079 for 1080p */
-  row_offset = 480 * (s->pkt_idx % 4); /* [0, 480, 960, 1440] for 1080p */
-  rtp->row_number = htons(row_number);
+  row_number = s->pkt_idx / 4;         /* 0 to 1079 for 1080p */ 
+  row_offset = 480 * (s->pkt_idx % 4); /* [0, 480, 960, 1440] for 1080p */ /* 1920/4 = 480 */
+  rtp->row_number = htons(row_number); // convert a 16-bit (short) number from host byte order to network byte order
   rtp->row_offset = htons(row_offset);
   rtp->row_length = htons(1200); /* 1200 for 1080p */
 
   /* feed payload, memset to 0 as example */
-  memset(payload, 0, s->packet_size - sizeof(*rtp));
+  // Sets the first [s->packet_size - sizeof(*rtp)] bytes of the block of memory pointed by payload to 0
+  //s->packet_size is equiv to app[i]->packet_size in "app[i]->packet_size = ops_tx.rtp_pkt_size;" //Size for each rtp pkt, include both the payload data and rtp header
+  // struct st20_rfc4175_rtp_hdr* rtp is just a header here
+  memset(payload, 0, s->packet_size - sizeof(*rtp)); //TODO: fill with SDI payload
 
-  *pkt_len = s->packet_size;
-  s->seq_id++;
-  s->pkt_idx++;
+  //Size for each rtp pkt, include both the payload data and rtp header
+  *pkt_len = s->packet_size; //related to handling of mbuf in `st20_tx_put_mbuf`. not very understand.
+
+  s->seq_id++; //Tx assign unique seq num to each RTP packet sent over the network. This helps in maintaining the order of packets and detecting any packet loss in Rx side.
+  s->pkt_idx++; //update the idx of pkts within a single video frame, so that the pos of each pkt within the frame can be determined
   if (s->pkt_idx >= s->total_packet_in_frame) {
     dbg("%s(%d), frame %d done\n", __func__, s->idx, s->fb_send);
     /* end of current frame */
-    rtp->base.marker = 1;
+    rtp->base.marker = 1; //set marker bit as 1 to denote that pkt is the last pkt of the current frame. set to zero for all other pkts.
 
     s->pkt_idx = 0;
     s->rtp_tmstamp++;
-    s->fb_send++;
+    s->fb_send++; //number of frames sent
   }
 
   return 0;
@@ -126,8 +133,8 @@ int main(int argc, char** argv) {
       ret = -ENOMEM;
       goto error;
     }
-    memset(app[i], 0, sizeof(struct tv_rtp_sample_ctx));
-    st_pthread_mutex_init(&app[i]->wake_mutex, NULL);
+    memset(app[i], 0, sizeof(struct tv_rtp_sample_ctx)); // Fields that are not explicitly set during initialization would get value zero, if the structure was zero-initialized using memset.
+    st_pthread_mutex_init(&app[i]->wake_mutex, NULL); //why need mutex?
     st_pthread_cond_init(&app[i]->wake_cond, NULL);
     app[i]->idx = i;
 
@@ -167,7 +174,7 @@ int main(int argc, char** argv) {
     app[i]->payload_type = ops_tx.payload_type;
     app[i]->handle = tx_handle[i];
     app[i]->stop = false;
-    app[i]->packet_size = ops_tx.rtp_pkt_size;
+    app[i]->packet_size = ops_tx.rtp_pkt_size; //Size for each rtp pkt, include both the payload data and rtp header
     app[i]->total_packet_in_frame = ops_tx.rtp_frame_total_pkts;
 
     ret = pthread_create(&app[i]->app_thread, NULL, app_tx_rtp_thread, app[i]);
@@ -188,7 +195,7 @@ int main(int argc, char** argv) {
     st_pthread_mutex_lock(&app[i]->wake_mutex);
     st_pthread_cond_signal(&app[i]->wake_cond);
     st_pthread_mutex_unlock(&app[i]->wake_mutex);
-    pthread_join(app[i]->app_thread, NULL);
+    pthread_join(app[i]->app_thread, NULL);// Wait for the thread to finish
     info("%s(%d), sent frames %d\n", __func__, i, app[i]->fb_send);
   }
 

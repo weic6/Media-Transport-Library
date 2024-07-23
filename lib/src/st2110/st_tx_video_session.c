@@ -4199,7 +4199,7 @@ void* st20_tx_get_mbuf(st20_tx_handle handle, void** usrptr) {
 
   struct rte_mempool* mp =
       s->tx_no_chain ? s->mbuf_mempool_hdr[MTL_SESSION_PORT_P] : s->mbuf_mempool_chain;
-  pkt = rte_pktmbuf_alloc(mp);
+  pkt = rte_pktmbuf_alloc(mp); //pkt is a pointer to an rte_mbuf structure, which is allocated from a memory pool (rte_mempool) and is used to store the entire network packet, including headers and payload.
   if (!pkt) {
     dbg("%s(%d), pkt alloc fail\n", __func__, idx);
     return NULL;

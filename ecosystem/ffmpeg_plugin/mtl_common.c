@@ -62,7 +62,7 @@ mtl_handle mtl_dev_get(AVFormatContext* ctx, const struct StDevArgs* args, int* 
   p.flags |= MTL_FLAG_RX_VIDEO_MIGRATE;
   p.flags |= MTL_FLAG_RX_SEPARATE_VIDEO_LCORE;
   p.flags |= MTL_FLAG_BIND_NUMA;
-  p.log_level = MTL_LOG_LEVEL_INFO;  // log level. ERROR, INFO, WARNING
+  p.log_level = MTL_LOG_LEVEL_INFO;  // log level. ERROR, INFO. WARNING
 
   if (args->dma_dev) {
     char devs[128] = {0};
