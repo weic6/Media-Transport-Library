@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "mtl_common.h"
+#include "mtl_common.h" 
 
 typedef struct mtlSt20pMuxerContext {
   const AVClass* class; /**< Class for private options. */
@@ -40,7 +40,7 @@ typedef struct mtlSt20pMuxerContext {
   int frame_size;
 } mtlSt20pMuxerContext;
 
-static int mtl_st20p_write_close(AVFormatContext* ctx) {
+static int mtl_st20p_write_close(AVFormatContext* ctx) { //test
   mtlSt20pMuxerContext* s = ctx->priv_data;
 
   dbg("%s(%d), start\n", __func__, s->idx);
