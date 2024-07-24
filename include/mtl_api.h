@@ -30,7 +30,12 @@ extern "C" {
  * Compiler specific pack specifier
  */
 #ifdef __GNUC__
-#define MTL_PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
+#define MTL_PACK(__Declaration__)                                                                                                             \
+  __Declaration__                                                                                                                             \
+      __attribute__((__packed__)) /* ensures that the compiler does not add any padding                                                       \
+                                     between the fields of the structure (ref:                                                                \
+                                     https://www.quora.com/What-is-the-attribute__-packed-variable-attribute-in-C-and-why-and-how-is-it-used) \
+                                   */
 #endif
 
 #ifdef _MSC_VER
@@ -131,12 +136,12 @@ typedef struct mtl_dma_mem* mtl_dma_mem_handle;
 /**
  * Bad IOVA address
  */
-#define MTL_BAD_IOVA ((mtl_iova_t)-1)
+#define MTL_BAD_IOVA ((mtl_iova_t) - 1)
 
 /**
  * Macro to align a value, align should be a power-of-two value.
  */
-#define MTL_ALIGN(val, align) (((val) + ((align)-1)) & ~((align)-1))
+#define MTL_ALIGN(val, align) (((val) + ((align) - 1)) & ~((align) - 1))
 
 #ifdef __MTL_PYTHON_BUILD__
 /** swig not support __deprecated__ */
